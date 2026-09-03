@@ -1,6 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
-# Valida la sintaxis del plan localmente si Docker está disponible.
+# V2: el contenedor necesita la red del host para acceder a localhost:8080.
+# En esta VM Docker requiere sudo para acceder al socket.
 echo "=== Verificando Plan de ZAP AF ==="
-docker run --rm -v "$(pwd):/zap/wrk/:rw" -t zaproxy/zap-stable zap.sh \
-  -cmd -autorun /zap/wrk/.zap/zap-plan.yml
+mkdir -p reports
+sudo docker run --rm --network host \
+  -e APP_USER -e APP_PASSWORD \
+  -v "$(pwd):/zap/wrk/:rw" \
+  -t ghcr.io/zaproxy/zaproxy:stable zap.sh \
+  -cmd -port 8090 -autorun /zap/wrk/.zap/zap-plan.yml

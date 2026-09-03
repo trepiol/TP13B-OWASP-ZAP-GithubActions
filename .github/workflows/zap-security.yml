@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   zap_scan:
     runs-on: ubuntu-latest
@@ -16,23 +19,35 @@ jobs:
 
       - name: Levantar la App con Docker Compose
         run: |
-          docker compose up -d
-          # Esperar a que la app esté lista antes de escanear
-          sleep 30
+          docker compose up -d --build
+
+          # V2: reemplazo la espera fija por una comprobación real de salud.
+          for intento in {1..30}; do
+            if curl --fail --silent http://localhost:8080/health; then
+              echo "Notes App disponible en http://localhost:8080"
+              break
+            fi
+            if [ "$intento" -eq 30 ]; then
+              echo "La Notes App no respondió dentro del tiempo esperado" >&2
+              docker compose logs
+              exit 1
+            fi
+            sleep 2
+          done
 
       - name: ZAP Scan (Automation Framework)
         uses: zaproxy/action-af@v0.3.0
+        env:
+          APP_USER: ${{ secrets.APP_USER }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
         with:
           plan: '.zap/zap-plan.yml'
-          token: ${{ secrets.GITHUB_TOKEN }}
           docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
+          # V2: evito que el proxy interno de ZAP compita con la app en 8080.
+          cmd_options: '-port 8090'
           docker_env_vars: |
             APP_USER
             APP_PASSWORD
-
-      - name: Subir Reporte de Vulnerabilidades
-        if: always()
-        uses: actions/checkout@v4
 
       - name: Upload Artifact
         if: always()
@@ -41,3 +56,7 @@ jobs:
           name: zap-security-report
           path: reports/
           retention-days: 7
+
+      - name: Mostrar estado final de los servicios
+        if: always()
+        run: docker compose ps

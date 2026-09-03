@@ -27,10 +27,11 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    ports: ["127.0.0.1:${FRONTEND_PORT:-80}:80"]
+    # V2: el plan de ZAP analiza localhost:8080, por eso alineo el puerto
+    # predeterminado de Compose con la URL indicada en el enunciado.
+    ports: ["127.0.0.1:${FRONTEND_PORT:-8080}:80"]
     depends_on:
       backend: {condition: service_healthy}
     networks: [app]
 networks: {app: {}}
 volumes: {postgres-data: {}}
-

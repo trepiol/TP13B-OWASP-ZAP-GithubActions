@@ -1,4 +1,6 @@
 .env
 runtime/
 __pycache__/
-
+reports/
+*.log
+*.session*
