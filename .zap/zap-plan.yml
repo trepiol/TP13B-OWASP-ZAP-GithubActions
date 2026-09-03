@@ -5,26 +5,76 @@ env:
         - "http://localhost:8080"
       includePaths:
         - "http://localhost:8080/.*"
+      excludePaths:
+        - "http://localhost:8080/api/logout.*"
+      authentication:
+        method: json
+        parameters:
+          loginPageUrl: "http://localhost:8080/"
+          loginRequestUrl: "http://localhost:8080/api/login"
+          loginRequestBody: '{"username":"{%username%}","password":"{%password%}"}'
+        verification:
+          method: poll
+          loggedInRegex: '"authenticated":true'
+          loggedOutRegex: '"authenticated":false'
+          pollFrequency: 10
+          pollUnits: requests
+          pollUrl: "http://localhost:8080/api/session"
+          pollPostData: ""
+      sessionManagement:
+        method: cookie
+        parameters: {}
+      users:
+        - name: notes-user
+          credentials:
+            username: "${APP_USER}"
+            password: "${APP_PASSWORD}"
   parameters:
     failOnError: true
     failOnWarning: false
+    progressToStdout: true
 
 jobs:
+  - type: requestor
+    name: Comprobar protección sin sesión
+    requests:
+      - url: "http://localhost:8080/api/notes"
+        method: GET
+        responseCode: 401
+
+  - type: requestor
+    name: Comprobar acceso autenticado
+    parameters:
+      user: notes-user
+    requests:
+      - url: "http://localhost:8080/api/session"
+        method: GET
+        responseCode: 200
+      - url: "http://localhost:8080/api/notes"
+        method: GET
+        responseCode: 200
+
   - type: spider
     parameters:
       context: notes-app-context
+      user: notes-user
       maxDuration: 2
+      logoutAvoidance: true
 
   - type: spiderAjax
     parameters:
       context: notes-app-context
+      user: notes-user
       maxDuration: 2
+      browserId: firefox-headless
+      logoutAvoidance: true
 
   - type: passiveScan-wait
 
   - type: activeScan
     parameters:
       context: notes-app-context
+      user: notes-user
       policy: Default Policy
       maxScanDurationInMins: 5
 
@@ -33,4 +83,5 @@ jobs:
       template: modern
       reportDir: /zap/wrk/reports
       reportFile: zap-report
-      reportTitle: "Notes App - Security Scan Report"
+      reportTitle: "Notes App - Authenticated Security Scan Report"
+

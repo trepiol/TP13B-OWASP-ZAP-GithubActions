@@ -1,6 +1,5 @@
-.env
-runtime/
-__pycache__/
+guia-06/.env
 reports/
 *.log
-*.session*
+.ZAP/
+

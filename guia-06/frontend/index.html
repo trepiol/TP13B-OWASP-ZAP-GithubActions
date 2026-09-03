@@ -1,0 +1,34 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Notes App</title><style>body{font:16px system-ui;max-width:760px;margin:3rem auto;padding:0 1rem;background:#f6f7f9}form,article{background:white;padding:1rem;margin:1rem 0;border-radius:.6rem}input,button{padding:.6rem;margin:.2rem}input{width:38%}#login-box input{width:80%;display:block}#app{display:none}#logout{display:block;margin:0 auto 1rem}</style><h1>Notes App — Operaciones 1</h1><p id="status">Comprobando…</p>
+<section id="login-box"><form id="login-form"><h2>Iniciar sesión</h2><input id="username" required placeholder="Usuario" autocomplete="username"><input id="password" type="password" required placeholder="Contraseña" autocomplete="current-password"><button>Entrar</button><p id="login-error" style="color:#b00"></p></form></section>
+<section id="app"><button id="logout">Salir</button><form id="form"><input id="title" required maxlength="200" placeholder="Título"><input id="content" placeholder="Contenido"><button>Crear</button></form><main id="notes"></main></section>
+<script>
+const statusEl=document.getElementById('status'),notesEl=document.getElementById('notes'),formEl=document.getElementById('form'),titleEl=document.getElementById('title'),contentEl=document.getElementById('content');
+const loginBox=document.getElementById('login-box'),appBox=document.getElementById('app'),loginForm=document.getElementById('login-form'),userEl=document.getElementById('username'),passEl=document.getElementById('password'),loginError=document.getElementById('login-error'),logoutBtn=document.getElementById('logout');
+function esc(s){let d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
+async function checkSession(){
+  let r=await fetch('/api/session');let j=await r.json();
+  if(j.authenticated){loginBox.style.display='none';appBox.style.display='block';statusEl.textContent='Sesión activa como '+j.user;await load()}
+  else{loginBox.style.display='block';appBox.style.display='none';statusEl.textContent='Necesitás iniciar sesión'}
+}
+async function load(){
+  try{
+    let h=await fetch('/health');if(!h.ok)throw new Error('health '+h.status);
+    let r=await fetch('/api/notes');
+    if(r.status===401){return checkSession()}
+    if(!r.ok)throw new Error('notes '+r.status);
+    let xs=await r.json();
+    statusEl.textContent='Backend y base conectados';
+    notesEl.innerHTML=xs.map(x=>`<article><b>${esc(x.title)}</b><p>${esc(x.content)}</p><button onclick="del(${x.id})">Eliminar</button></article>`).join('')
+  }catch(e){statusEl.textContent='Servicio no disponible: '+e.message}
+}
+async function del(id){await fetch('/api/notes/'+id,{method:'DELETE'});await load()}
+formEl.onsubmit=async e=>{e.preventDefault();await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:titleEl.value,content:contentEl.value})});formEl.reset();await load()};
+loginForm.onsubmit=async e=>{
+  e.preventDefault();loginError.textContent='';
+  let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:userEl.value,password:passEl.value})});
+  if(r.ok){passEl.value='';await checkSession()}else{let j=await r.json().catch(()=>({}));loginError.textContent=j.error||'Error de autenticación'}
+};
+logoutBtn.onclick=async()=>{await fetch('/api/logout',{method:'POST'});await checkSession()};
+checkSession();
+</script>
+</html>

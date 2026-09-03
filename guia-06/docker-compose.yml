@@ -1,3 +1,5 @@
+name: guia13alumnos
+
 services:
   db:
     image: postgres:17-alpine
@@ -21,14 +23,15 @@ services:
       DB_NAME: ${DB_NAME:-notesdb}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-devops123}
+      APP_USER: ${APP_USER:-admin}
+      APP_PASSWORD: ${APP_PASSWORD:-devops123}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-cambiame}
     depends_on:
       db: {condition: service_healthy}
     networks: [app]
   frontend:
     build: ./frontend
     restart: unless-stopped
-    # V2: el plan de ZAP analiza localhost:8080, por eso alineo el puerto
-    # predeterminado de Compose con la URL indicada en el enunciado.
     ports: ["127.0.0.1:${FRONTEND_PORT:-8080}:80"]
     depends_on:
       backend: {condition: service_healthy}
